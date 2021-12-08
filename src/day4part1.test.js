@@ -1,36 +1,36 @@
-const { takeWhile, chunk, find } = require("lodash");
+const { chunk, find, first, drop, zip } = require("lodash");
+const GRID_SIZE = 5;
 
 function bingo(input) {
-  const GRID_SIZE = 5;
   let { numbersToDraw, boards } = parseInput();
+  let { lastNumberDrawn, winningBoard } = playBingo(numbersToDraw, boards);
+  return lastNumberDrawn * sumOfNonMarkedNumbersFrom(winningBoard);
 
-  let lastNumberDrawn;
-  takeWhile(numbersToDraw, (drawnNumber) => {
-    markOnBoards(drawnNumber);
-    lastNumberDrawn = drawnNumber;
-    return noWinnerYet();
-  });
-
-  return (
-    lastNumberDrawn *
-    getWinningBoard()
-      .filter((n) => n !== -1)
-      .reduce((a, b) => a + b)
-  );
-
-  function noWinnerYet() {
-    return getWinningBoard() === undefined;
+  function playBingo(numbersToDraw, boards) {
+    const drawnNumber = first(numbersToDraw);
+    const markedBoards = markOnBoards(drawnNumber, boards);
+    const winningBoard = getWinningBoard(markedBoards);
+    if (winningBoard)
+      return {
+        lastNumberDrawn: drawnNumber,
+        winningBoard: winningBoard,
+      };
+    else return playBingo(drop(numbersToDraw, 1), markedBoards);
   }
 
-  function markOnBoards(drawnNumber) {
-    boards = boards.map((board) =>
+  function sumOfNonMarkedNumbersFrom(board) {
+    return board.filter((n) => n !== -1).reduce((a, b) => a + b);
+  }
+
+  function markOnBoards(drawnNumber, boards) {
+    return boards.map((board) =>
       board.map((numberOnBoard) =>
         numberOnBoard === drawnNumber ? -1 : numberOnBoard
       )
     );
   }
 
-  function getWinningBoard() {
+  function getWinningBoard(boards) {
     return find(
       boards,
       (board) => hasWinningRow(board) || hasWinningColumn(board)
@@ -43,9 +43,7 @@ function bingo(input) {
 
   function hasWinningColumn(board) {
     const rows = chunk(board, GRID_SIZE);
-    const columns = [...Array(GRID_SIZE)].map((_, colIdx) =>
-      rows.map((row) => row[colIdx])
-    );
+    const columns = zip(...rows);
     return !!columns.find(allMarked);
   }
 

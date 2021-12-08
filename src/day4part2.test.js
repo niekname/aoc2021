@@ -1,38 +1,45 @@
-const { takeWhile, chunk, remove, last } = require("lodash");
+const { chunk, last, first, drop, filter, zip } = require("lodash");
+const GRID_SIZE = 5;
 
 function bingo(input) {
-  const GRID_SIZE = 5;
   let { numbersToDraw, boards } = parseInput();
+  let { lastNumberDrawn, lastWinningBoard } = playBingo(numbersToDraw, boards);
+  return lastNumberDrawn * sumOfNonMarkedNumbersFrom(lastWinningBoard);
 
-  let lastNumberDrawn, lastWinningBoard;
-  takeWhile(numbersToDraw, (drawnNumber) => {
-    markOnBoards(drawnNumber);
-    lastNumberDrawn = drawnNumber;
-    lastWinningBoard = removeWinningBoards();
-    return notAllBoardsHaveWon();
-  });
-
-  return (
-    lastNumberDrawn *
-    lastWinningBoard.filter((n) => n !== -1).reduce((a, b) => a + b)
-  );
-
-  function removeWinningBoards() {
-    return last(
-      remove(boards, (board) => hasWinningRow(board) || hasWinningColumn(board))
-    );
+  function playBingo(numbersToDraw, boards) {
+    const drawnNumber = first(numbersToDraw);
+    const markedBoards = markOnBoards(drawnNumber, boards);
+    const remainingBoards = removeWinningBoards(markedBoards);
+    if (allBoardsHaveWon(remainingBoards))
+      return {
+        lastNumberDrawn: drawnNumber,
+        lastWinningBoard: last(markedBoards),
+      };
+    else return playBingo(drop(numbersToDraw, 1), remainingBoards);
   }
 
-  function notAllBoardsHaveWon() {
-    return boards.length !== 0;
+  function sumOfNonMarkedNumbersFrom(board) {
+    return board.filter((n) => n !== -1).reduce((a, b) => a + b);
   }
 
-  function markOnBoards(drawnNumber) {
-    boards = boards.map((board) =>
+  function removeWinningBoards(boards) {
+    return filter(boards, (board) => !boardHasWon(board));
+  }
+
+  function allBoardsHaveWon(boards) {
+    return boards.length === 0;
+  }
+
+  function markOnBoards(drawnNumber, boards) {
+    return boards.map((board) =>
       board.map((numberOnBoard) =>
         numberOnBoard === drawnNumber ? -1 : numberOnBoard
       )
     );
+  }
+
+  function boardHasWon(board) {
+    return hasWinningRow(board) || hasWinningColumn(board);
   }
 
   function hasWinningRow(board) {
@@ -41,9 +48,7 @@ function bingo(input) {
 
   function hasWinningColumn(board) {
     const rows = chunk(board, GRID_SIZE);
-    const columns = [...Array(GRID_SIZE)].map((_, colIdx) =>
-      rows.map((row) => row[colIdx])
-    );
+    const columns = zip(...rows);
     return !!columns.find(allMarked);
   }
 
